@@ -1,18 +1,508 @@
 Goをスクリプト的に使おう
-
 長岡 IT開発者 勉強会(NDS) 第46回勉強会
-
 20 Feb 2016
 
-hayajo
+Hayato Imai
 @hayajo
 
 * Agenda
 
-- 自己紹介
 - Go言語の特徴
 - 環境構築
 - Goをスクリプト的に使う
-- 標準パッケージ
-- イディオム
+- 便利なツール
+- スニペット
+
+* About me
+
+- Hayato Imai(@hayajo)
+- ウォーターセル株式会社
+- インフラエンジニア
+
+エンジニア募集中です！
+.link http://www.agri-note.jp/recruit/
+
+* Go言語の特徴
+
+- Googleが開発
+- コンパイル型言語
+- クロスコンパイルをサポート
+- 軽量な並行処理
+
+* 環境構築
+
+各プラットフォーム向けのバイナリを https://golang.org/dl/ からダウンロードしてインストールします。
+
+インストール後は環境変数 GOPATH に、ソースコードやコンパイル済みのバイナリを置くためのパスを指定します。
+パッケージのインポートでは GOPATH で指定された場所からパッケージを探します。
+
+  $ export GOPATH=$HOME
+
+基本的にはどこでも良いのですが、 $HOME に設定すると `go install` でインストールしたバイナリが $HOME/bin にインストールされるので PATH 的に便利です。
+
+* Goをスクリプト的に使う
+
+* go run
+
+Goのコードを直接実行するには `go run` コマンドを使います。
+
+  $ go run main.go
+
+import で記述されたパッケージの依存関係も含めてコンパイルし、実行します。
+
+`-work` オプションでバイナリの出力先を表示し、終了時に削除もされません。
+
+* エントリポイント
+
+プログラムのエントリポイントは main パッケージの main 関数です。
+
+  // main.go
+  package main
+
+  import "fmt"
+
+  func main() {
+    fmt.Println("Hello World")
+  }
+ 
+  $ go run main.go
+  Hello World
+
+* ファイル分割(1)
+
+パッケージは複数のファイルに分割できます。
+
+  // main.go
+  package main
+
+  import "fmt"
+
+  func main() {
+    fmt.Println(greet("World"))
+  }
+ 
+  // greet.go
+  package main
+
+  func greet(name string) String {
+    return "Hello " + name
+  }
+
+* ファイル分割(2)
+
+main パッケージを複数のファイルに分割した場合は `go run` の引数にすべてのファイルを渡して実行します。
+
+  $ go run main.go greet.go
+  Hello World
+
+* ローカルパッケージ(1)
+
+パッケージはディレクトリ単位で構成されます。
+（パッケージ名は必ずしもディレクトリ名と同じにする必要はありません）
+
+  $ tree
+  .
+  ├── main.go      # mainパッケージ
+  └── mylib
+      └── greet.go # mylibパッケージ
+
+* ローカルパッケージ(2)
+
+`import ./path/to/package` でローカルパッケージを参照できます。
+
+  // main.go
+  package main
+
+  import (
+    "fmt"
+
+    "./mylib"
+  )
+
+  func main() {
+    fmt.Println(mylib.Greet("World"))
+  }
+ 
+  // ./mylib/greet.go
+  package mylib
+
+  func Greet(name string) string {
+    return "Hello " + name
+  }
+
+* ローカルパッケージ(3)
+
+`go run` ではインポートパスにある依存パッケージも含めてコンパイルし、実行します。
+
+  $ go run main.go
+  Hello World
+
+* 終了コード
+
+`go run` で実行されるプログラムは子プロセスで動作します。
+このため `os.Exit(127)` としても終了コードは常に 1 になるので注意が必要です。
+
+  // exit.go
+  package main
+
+  import "os"
+
+  func main() {
+    os.Exit(127)
+  }
+ 
+  $ go run exit.go; echo $?
+  exit status 127 # go run コマンドが出力
+  1
+
+ビルドしたものであれば期待通りの終了コードとなります。
+
+  $ go build -o go_exit exit.go; ./go_exit; echo $?
+  127
+
+* 便利なツール
+
+* go fmt
+
+コードを修正して標準に準拠したフォーマットへと書き換えてくれます。
+
+  $ go fmt ./...
+
+* go vet
+
+コードを調査して誤りを検出します。
+
+  $ go vet ./...
+
+検出対象のリストは https://godoc.org/golang.org/x/tools/cmd/vet で公開されています。
+
+* go list
+
+パッケージのリストを表示します。
+
+  $ go list -f '{{ .Deps }}' ./...
+
+テンプレートに渡される struct の詳細は https://golang.org/cmd/go/#hdr-List_packages で確認できます。
+
+* goimports
+
+コード内の import 文を修正します。
+
+  $ go get -u golang.org/x/tools/cmd/goimports # インストール
+ 
+  $ goimports -w ./
+
+* golint
+
+コードを静的解析します。
+
+  $ go get -u github.com/golang/lint/golint # インストール
+ 
+  $ golint ./...
+
+* スニペット
+
+* 文字列操作
+
+* 文字列と数値の変換
+
+.link https://play.golang.org/p/f1q8msNuLP
+
+  var i int64 = 42
+
+  str := strconv.FormatInt(i, 10)       // 数値から文字列へ
+  j, _ := strconv.ParseInt(str, 10, 64) // 文字列から数値へ
+
+  fmt.Printf("i = %d, str = %s, j = %d\n", i, str, j)
+
+* 文字列から日付へ変換
+
+.link https://play.golang.org/p/Xye4db7p7g
+
+  var str = "20/Feb/2016:13:00:00 +0900"
+
+  // フォーマット文字は "1月2日午後3時4分5秒2006年"
+  t, _ := time.Parse("02/Jan/2006:15:04:05 -0700", str)
+
+  fmt.Println(t.Format(time.RFC3339))
+
+* 文字列を１文字ずつ処理
+
+.link https://play.golang.org/p/c1migYzmbG
+
+  var str = "こんにちは、世界"
+
+  // len() ではバイト数となる
+  fmt.Printf("bytes = %d, runes = %d\n", len(str), utf8.RuneCountInString(str))
+
+  for _, c := range str { // range で1文字ずつイテレーション
+    fmt.Printf("%c\n", c)
+  }
+
+* 正規表現
+
+.link https://play.golang.org/p/vdGy7kFf0_
+
+  var str = "Hello World"
+
+  r, err := regexp.Compile(`(?i)hello`) // コンパイル失敗時にpanicします
+  if err != nil {
+    log.Fatal(err)
+  }
+  fmt.Println(r.MatchString(str))                 // 一致
+  fmt.Println(r.ReplaceAllString(str, "Goodbye")) // 置換
+
+.link https://github.com/google/re2/wiki/Syntax
+
+* ファイル操作
+
+* ファイルパスの操作
+
+.link https://play.golang.org/p/8L226l-QSb
+
+  var c = []string{"path", "to", "myfile.go"}
+
+  p := filepath.Join(c...) // 連結
+  fmt.Printf("path = %s\n", p)
+
+  a, _ := filepath.Abs(p)   // 絶対パス
+  d, f := filepath.Split(a) // ディレクトリとファイルに分割
+  fmt.Printf("dirname = %s, filename = %s\n", d, f)
+
+  // リストセパレータで分割
+  fmt.Printf("PATH = %v\n", filepath.SplitList(os.Getenv("PATH")))
+
+* ファイルやディレクトリの存在確認
+
+.link https://play.golang.org/p/3mF7v9g-TU
+
+  var dir = "/tmp/mydir"
+
+  stat, err := os.Stat(dir) // ファイル/ディレクトリが存在しない場合はerrorが返る
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  if stat.IsDir() {
+    fmt.Printf("%s is directory", dir)
+  }
+
+* ファイルへの作成と書き込み
+
+.link https://play.golang.org/p/omyBRP3g8h
+
+  var file = "/tmp/myfile.txt"
+
+  fh, err := os.Create(file) // ファイルの作成
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer fh.Close()
+
+  _, err = fmt.Fprint(fh, "Hello World") // ファイルへ書き込み（io.Writer）
+  if err != nil {
+    log.Fatal(err)
+  }
+
+* ファイルを1行ずつ読み込む
+
+.link https://play.golang.org/p/eXaVELmKcC
+
+  var file = "/path/to/file"
+
+  fh, err := os.Open(file)
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer fh.Close()
+
+  scanner := bufio.NewScanner(fh)
+  for scanner.Scan() { // EOFもしくはエラーがくるとfalseが返る
+    fmt.Println(scanner.Text())
+  }
+
+  if err := scanner.Err(); err != nil { // EOFの場合はnilが返る
+    fmt.Fprintln(os.Stderr, err)
+  }
+
+* 非同期処理
+
+* バックグラウンドで処理を実行
+
+.link https://play.golang.org/p/qW6LP6nGVu
+
+  var w sync.WaitGroup // WaitGroupを用意
+
+  for _, url := range []string{"http://yahoo.co.jp", "http://www.google.com"} {
+    w.Add(1) // WaitGroupに追加
+    go func(url string) {
+      resp, err := http.Get(url)
+      if err != nil {
+        log.Fatal(err)
+      }
+      defer resp.Body.Close()
+      fmt.Println(url, resp.Status)
+      w.Done() // WaitGroupから削除
+    }(url)
+  }
+
+  // WaitGroupがゼロになるまで待ち合わせ
+  w.Wait()
+
+* タイムアウト
+
+.link https://play.golang.org/p/EJi_5kB-b0
+
+  var timeout = 3 * time.Second
+
+  chTimeout := time.After(timeout) // タイムアウト通知用チャネル
+  chOut := make(chan string)
+
+  go func(chOut chan<- string) {
+    for {
+      chOut <- "working..."
+      time.Sleep(500 * time.Millisecond)
+    }
+  }(chOut)
+
+  LOOP:
+  for { // for-select でチャネルを待ち受ける
+    select {
+    case out := <-chOut:
+      fmt.Println(out)
+    case <-chTimeout: // タイムアウトの通知を受けたらループを抜けて終了する
+      fmt.Println("timeout")
+      break LOOP
+    }
+  }
+
+* HTTPサーバー/クライアント
+
+* HTTPサーバー
+
+.link https://play.golang.org/p/A-CKFP-7UP
+
+  // DefaultServeMuxにハンドラ関数を登録する
+  http.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
+    res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+    res.WriteHeader(http.StatusOK)
+    io.WriteString(res, "Hello World\n")
+  })
+
+  // サーバーを開始する（handlerがnilの場合はDefaultServeMuxがハンドラとなる）
+  http.ListenAndServe(":8080", nil)
+
+* HTTPクライアント(1)
+
+.link https://play.golang.org/p/tRYIUd2soZ
+
+  v := url.Values{} // クエリパラメータ格納用
+  v.Add("foo", "FOO")
+  v.Add("bar", "BAR")
+
+  // EncodeメソッドでURLエンコードを行う
+  resp, err := http.Get("http://127.0.0.1:8080/" + "?" + v.Encode())
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer resp.Body.Close() // レスポンスを閉じる
+
+  b, err := ioutil.ReadAll(resp.Body)
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  fmt.Println(resp.Status)
+  fmt.Println(string(b))
+
+* HTTPクライアント(2)
+
+リクエストのタイムアウトやCookieは http.Client で設定します。
+
+.link https://play.golang.org/p/Cr7pO9uuSj
+
+  c := &http.Client{Timeout: 10 * time.Second}
+
+  resp, err := c.Get("http://127.0.0.1:8080")
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer resp.Body.Close()
+
+  b, err := ioutil.ReadAll(resp.Body)
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  fmt.Println(resp.Status)
+  fmt.Println(string(b))
+
+* HTTPクライアント(3)
+
+より細かいリクエストは http.Requeset を使います。
+
+.link https://play.golang.org/p/3qO5TBYSxr
+
+  c := &http.Client{Timeout: 10 * time.Second}
+
+  r, err := http.NewRequest("GET", "http://127.0.0.1:8080", nil)
+  r.Header.Add("User-Agent", "myapp/1.0")
+
+  resp, err := c.Do(r)
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer resp.Body.Close()
+
+  b, err := ioutil.ReadAll(resp.Body)
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  fmt.Println(resp.Status)
+  fmt.Println(string(b))
+
+* JSON
+
+* 構造体の定義
+
+構造体のタグでJSONの出力を制御できます。
+
+  type User struct {
+    Name    string `json:"name"`              // キーの定義
+    Email   string `json:"emai"`
+    Age     int    `json:"-"`                 // 無視する
+    Address string `json:"address,omitempty"` // 値が空なら無視する
+  }
+
+* JSONエンコード
+
+.link https://play.golang.org/p/5gvrOrq3rr
+
+  user := &User{
+    Name:  "taro",
+    Email: "taro@example.org",
+    Age:   25,
+  }
+
+  b, err := json.Marshal(user) // エンコード
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  fmt.Println(string(b))
+
+* JSONデコード
+
+.link https://play.golang.org/p/76Uf694AWO
+
+  b := []byte(`{"name":"taro","emai":"taro@example.org","address":"Niigata Japan"}`)
+  user := &User{}
+
+  err := json.Unmarshal(b, user) // デコード
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  fmt.Printf("%#v\n", user)
 
